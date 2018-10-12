@@ -10,10 +10,36 @@ def correlation_p_value(x, y, no_permutes = 100):
     for i in range(no_permutes):
          x_new = np.random.permutation(x)
          y_new = np.random.permutation(y)
-         correlation_values[i] = np.corrcoef(x_new, y_new)[0, 1]
+         correlation_values[i] = np.abs(np.corrcoef(x_new, y_new)[0, 1])
 
-    no_significant = np.sum(correlation_values > normal_corr)
+    no_significant = np.sum(correlation_values > np.abs(normal_corr))
     return normal_corr, no_significant/no_permutes
+
+def significant_correlation_matrix(X, significance_threshold = 0.05):
+    """
+    Creates a correlation matrix consisting only of significant values, all other values are set to 0
+    """
+    p = X.shape[1]
+    output_corr = np.zeros((p, p))
+
+    for i in range(p):
+        for j in range(p):
+            corr, p_value = correlation_p_value(X[:, i], X[:, j])
+            if p_value < significance_threshold:
+                output_corr[i, j] = corr
+
+    return output_corr
+
+def significant_partial_correlation_matrix(X, significance_threshold = 0.05):
+    """
+    Creates a partial correlation matrix consisting only of significant values, all other values are set to 0
+    """
+    partial_corr, p_values = partial_correlation_p_value(X)
+
+    ind = p_values > significance_threshold
+    partial_corr[ind] = 0
+
+    return partial_corr
 
 def precision_matrix_to_partial_corr(theta):
     """
@@ -45,17 +71,7 @@ def partial_correlation_p_value(X, no_permutes = 100):
     for i in range(p):
         for j in range(p):
             vals = partial_correlation_values[:, i, j].flatten()
-            fraction_significant = np.sum(vals > normal_partial_corr[i, j])
+            fraction_significant = np.sum(np.abs(vals) > np.abs(normal_partial_corr[i, j]))
             p_value_matrix[i, j] = fraction_significant/no_permutes
     
     return normal_partial_corr, p_value_matrix
-
-
-x = np.random.randn(100)
-y = 2 * x
-z = np.random.randn(100)
-
-print(correlation_p_value(x, y))
-print(correlation_p_value(y, z))
-print(partial_correlation_p_value(np.array([x, y]).T))
-print(partial_correlation_p_value(np.array([z, y]).T))

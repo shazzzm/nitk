@@ -24,6 +24,7 @@ np.fill_diagonal(corr, 0)
 
 dense_pca_network = pni.pca_network_inference(X, 4)
 #sparse_pca_network = pni.sparse_pca_network_inference(X, 5, 1)
+np.fill_diagonal(corr, 0)
 
 dense_pca_network_tpr = []
 dense_pca_network_fpr = []
