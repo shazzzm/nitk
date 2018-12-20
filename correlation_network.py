@@ -3,7 +3,6 @@ from sklearn.covariance import LedoitWolf
 
 def correlation_p_value(x, y, no_permutes = 100):
     normal_corr = np.corrcoef(x, y)[0, 1]
-    print(normal_corr)
 
     correlation_values = np.zeros(no_permutes)
 
