@@ -1,0 +1,7 @@
+Network Inference Toolkit
+
+A bunch of scripts written to infer correlation/partial correlation networks from data. Some of these may not be entirely correct!
+
+Implemented:
+SPACE - Partial Correlation Estimation by Joint Sparse Regression Models  by Peng, Wang and Zhu - https://doi.org/10.1198/jasa.2009.0126
+SCIO - Fast and adaptive sparse precision matrix estimation in high dimensions - Liu and Luo - https://doi.org/10.1016/j.jmva.2014.11.005
