@@ -4,8 +4,6 @@ from sklearn.linear_model import cd_fast
 import math
 from sklearn.utils.validation import check_random_state
 import sklearn.datasets
-import glmnet_python
-from glmnet import glmnet
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 
@@ -31,6 +29,7 @@ def run_scio_with_cv(X):
     """
     Runs the SCIO algorithm with cross validation to decide lambda
     """
+    p = X.shape[1]
     # Calculate the addition to the diagonal
     prec = np.zeros((p, p))
 
@@ -63,9 +62,8 @@ def solve_column_with_cv(X, i):
     S_train = calculate_scaled_covariance(X_train)
     S_test = np.cov(X_test, rowvar=False)
     # Calculate the lambdas to check
-    lambdas = np.arange(0, 50)
-    lambdas = 4*lambdas/50
-
+    lambdas = np.arange(0, 51)
+    lambdas = lambdas/50
     test_errors = []
     for l in lambdas:
         beta = solve_column_problem(S_train, i, l)
@@ -73,6 +71,7 @@ def solve_column_with_cv(X, i):
         test_errors.append(error)
 
     min_err_i = np.argmin(test_errors)
+
     best_l = lambdas[min_err_i]
     S = np.cov(X, rowvar=False)
     return solve_column_problem(S, i, best_l), best_l
@@ -99,6 +98,7 @@ def calculate_scaled_covariance(X):
     S = S + diag_addition*np.eye(p)
     return S
 
+"""
 # Run a little test
 p = 100
 number_samples = 2000
@@ -107,3 +107,4 @@ C = np.linalg.inv(P)
 X = np.random.multivariate_normal(np.zeros(p), C, number_samples)
 prec = run_scio_with_cv(X)
 print(prec)
+"""

@@ -50,3 +50,19 @@ def run(X):
 
     space_prec = reconstruct_precision_matrix(clf.coef_, p)
     return space_prec
+
+def run(X, l):
+    """
+    Runs the space algorithm on the dataset X and returns a sparse precision matrix
+    """
+    n = X.shape[0]
+    p = X.shape[1]
+    sigma = np.ones(p)
+    w = np.ones(p)
+    chi, chiY = build_chi_matrix(X, sigma, w)
+
+    clf = lm.Lasso(l)
+    clf.fit(chi, chiY)
+
+    space_prec = reconstruct_precision_matrix(clf.coef_, p)
+    return space_prec
