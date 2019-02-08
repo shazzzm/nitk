@@ -6,6 +6,7 @@ from sklearn.utils.validation import check_random_state
 import sklearn.datasets
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
+from sklearn.utils.extmath import fast_logdet
 
 def run_scio(X, l):
     """
@@ -25,9 +26,9 @@ def run_scio(X, l):
         prec[:, i] = solve_column_problem(S, i, l).flatten()
     return make_matrix_symmetric(prec)
 
-def run_scio_with_cv(X):
+def run_scio_with_columnwise_cv(X):
     """
-    Runs the SCIO algorithm with cross validation to decide lambda
+    Runs the SCIO algorithm with cross validation on each column to decide lambda
     """
     p = X.shape[1]
     # Calculate the addition to the diagonal
@@ -36,6 +37,28 @@ def run_scio_with_cv(X):
     for i in range(p):
         prec[:, i], l = solve_column_with_cv(X, i)
     return make_matrix_symmetric(prec)
+
+def run_scio_with_cv(X):
+    """
+    Runs the SCIO algorithm with cross validation on the overall precision matrix to decide lambda
+    """
+    p = X.shape[1]
+    # Calculate the addition to the diagonal
+    prec = np.zeros((p, p))
+    X_train, X_test = train_test_split(X, test_size=0.4, random_state=0)
+    S_train = calculate_scaled_covariance(X_train)
+    S_test = np.cov(X_test, rowvar=False)
+
+    lambdas = np.arange(0, 51)
+    lambdas = lambdas/50
+    likelihoods = []
+    for l in lambdas:
+        prec = run_scio(X, l)
+        likelihood = precision_likelihood_function(S_test, prec)
+        likelihoods.append(likelihood)
+
+    best_l_index = np.argmin(likelihoods)
+    return run_scio(X, lambdas[best_l_index])
         
 def solve_column_problem(S, i, l):
     """
@@ -48,11 +71,17 @@ def solve_column_problem(S, i, l):
     beta, _, _, _ = cd_fast.enet_coordinate_descent_gram(beta, l, 0, S, e, e, 100, 1e-4, check_random_state(None), False)
     return beta
 
-def likelihood_function(S, beta, i):
+def column_likelihood_function(S, beta, i):
     p = S.shape[0]
     e = np.zeros(p)
     e[i] = 1
-    return 0.5 * beta.T @ S @ beta - e @ beta                                     
+    return 0.5 * beta.T @ S @ beta - e @ beta        
+
+def precision_likelihood_function(S, theta):
+    p = S.shape[0]
+    log_likelihood_ = -fast_logdet(theta) + np.trace(S @ theta)    
+    log_likelihood_ -= p * np.log(2 * np.pi)
+    return log_likelihood_                   
 
 def solve_column_with_cv(X, i):
     """
@@ -67,7 +96,7 @@ def solve_column_with_cv(X, i):
     test_errors = []
     for l in lambdas:
         beta = solve_column_problem(S_train, i, l)
-        error = likelihood_function(S_test, beta, i)
+        error = column_likelihood_function(S_test, beta, i)
         test_errors.append(error)
 
     min_err_i = np.argmin(test_errors)
@@ -98,13 +127,12 @@ def calculate_scaled_covariance(X):
     S = S + diag_addition*np.eye(p)
     return S
 
-"""
-# Run a little test
-p = 100
-number_samples = 2000
-P = sklearn.datasets.make_sparse_spd_matrix(dim=p, alpha=0.8, smallest_coef=.4, largest_coef=.7,)
-C = np.linalg.inv(P)
-X = np.random.multivariate_normal(np.zeros(p), C, number_samples)
-prec = run_scio_with_cv(X)
-print(prec)
-"""
+if __name__ == "__main__":
+    # Run a little test
+    p = 100
+    number_samples = 2000
+    P = sklearn.datasets.make_sparse_spd_matrix(dim=p, alpha=0.8, smallest_coef=.4, largest_coef=.7,)
+    C = np.linalg.inv(P)
+    X = np.random.multivariate_normal(np.zeros(p), C, number_samples)
+    prec = run_scio_with_cv(X)
+    print(prec)
