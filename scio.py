@@ -7,6 +7,7 @@ import sklearn.datasets
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 from sklearn.utils.extmath import fast_logdet
+import collections
 
 def run_scio(X, l):
     """
@@ -38,25 +39,33 @@ def run_scio_with_columnwise_cv(X):
         prec[:, i], l = solve_column_with_cv(X, i)
     return make_matrix_symmetric(prec)
 
-def run_scio_with_cv(X):
+def run_scio_with_cv(X, n_splits=3):
     """
     Runs the SCIO algorithm with cross validation on the overall precision matrix to decide lambda
     """
     p = X.shape[1]
     # Calculate the addition to the diagonal
     prec = np.zeros((p, p))
-    X_train, X_test = train_test_split(X, test_size=0.4, random_state=0)
-    S_train = calculate_scaled_covariance(X_train)
-    S_test = np.cov(X_test, rowvar=False)
+    kf = KFold(n_splits = n_splits)
+    l_likelihood = collections.defaultdict(list)
+    for train, test in kf.split(X):
+        X_train = X[train, :]
+        X_test = X[test, :]
+        lambdas = np.arange(0, 51)
+        lambdas = lambdas/50
+        likelihoods = []
+        S_test = np.cov(X_test, rowvar=False)
+        print(X_train.shape)
+        print(X_test.shape)
+        for l in lambdas:
+            prec = run_scio(X_train, l)
+            likelihood = precision_likelihood_function(S_test, prec)
+            l_likelihood[l].append(likelihood)
 
-    lambdas = np.arange(0, 51)
-    lambdas = lambdas/50
     likelihoods = []
-    for l in lambdas:
-        prec = run_scio(X, l)
-        likelihood = precision_likelihood_function(S_test, prec)
-        likelihoods.append(likelihood)
-
+    for l in l_likelihood:
+        mean_likelihood = np.mean(l_likelihood[l])
+        likelihoods.append(mean_likelihood)
     best_l_index = np.argmin(likelihoods)
     return run_scio(X, lambdas[best_l_index])
         
