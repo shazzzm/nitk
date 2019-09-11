@@ -15,7 +15,9 @@ class TestCorrelationPermutation(unittest.TestCase):
         n = 200
         C = make_sparse_spd_matrix(p, 0.7)
         X = np.random.multivariate_normal(np.zeros(p), C, n)
-        corr = correlation_network.significant_correlation_matrix(X)
+        corr_model = correlation_network.CorrelationPermutationNetwork()
+        corr_model.fit(X)
+        corr = corr_model.correlation_
         C = methods.threshold_matrix(C, 0.001, binary=True)
         corr = methods.threshold_matrix(corr, 0.001, binary=True)
 
