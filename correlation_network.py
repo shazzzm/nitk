@@ -1,8 +1,25 @@
 import numpy as np
 from sklearn.covariance import LedoitWolf
 from statsmodels.stats.multitest import multipletests
+import methods
 
 def correlation_p_value(x, y, no_permutes = 100):
+    """
+    Calculates the correlation between two variables and uses permutation testing to get a p-value
+    Parameters
+    ----------
+    x : array_like
+        variable 1 - 1 by p array
+    y : array_like
+        variable 2 - 1 by p array
+    no_permutes : (optional, int=100)
+        Number of times to permute the variables to calculate the p-value
+
+    Returns
+    -------
+    (correlation, p-value)
+    Pearson correlation and the p-value calculated using permutations
+    """
     normal_corr = np.corrcoef(x, y)[0, 1]
 
     correlation_values = np.zeros(no_permutes)
@@ -12,12 +29,23 @@ def correlation_p_value(x, y, no_permutes = 100):
          y_new = np.random.permutation(y)
          correlation_values[i] = np.abs(np.corrcoef(x_new, y_new)[0, 1])
 
-    no_significant = np.sum(correlation_values > np.abs(normal_corr))
+    no_significant = np.sum(np.abs(correlation_values) > np.abs(normal_corr))
     return normal_corr, no_significant/no_permutes
 
 def significant_correlation_matrix(X, significance_threshold = 0.05):
     """
     Creates a correlation matrix consisting only of significant values, all other values are set to 0
+    Parameters
+    ----------
+    X : array_like
+        n by p matrix containing the data
+    significance_threshold : (optional, float=0.05)
+        value at which we will consider a p-value significant
+
+    Returns
+    -------
+    p by p correlation matrix
+    Pearson correlation matrix with non-significant values set to 0
     """
     p = X.shape[1]
     output_corr = np.zeros((p, p))
@@ -33,8 +61,8 @@ def significant_correlation_matrix(X, significance_threshold = 0.05):
     # Run a test to correct for the multiple comparisons
     ind = np.triu_indices(p, k=1)
     p_vals_flat = p_vals[ind].flatten()
-    reject, corrected_vals, alpha_sidak, alpha_bonf = multipletests(p_vals_flat)
-    reject = corrected_vals > 0.05
+    _, corrected_vals, _, _ = multipletests(p_vals_flat)
+    reject = corrected_vals > significance_threshold
     corrs = output_corr[ind].flatten()
     corrs[reject] = 0
     output_corr[ind] = corrs
@@ -44,38 +72,58 @@ def significant_correlation_matrix(X, significance_threshold = 0.05):
 def significant_partial_correlation_matrix(X, significance_threshold = 0.05):
     """
     Creates a partial correlation matrix consisting only of significant values, all other values are set to 0
-    """
-    partial_corr, p_values = partial_correlation_p_value(X)
 
-    ind = p_values > significance_threshold
-    partial_corr[ind] = 0
+    Parameters
+    ----------
+    X : array_like
+        n by p matrix containing the data
+    significance_threshold : (optional, float=0.05)
+        value at which we will consider a p-value significant
 
-    return partial_corr
-
-def precision_matrix_to_partial_corr(theta):
+    Returns
+    -------
+    p by p correlation matrix
+    Partial correlation matrix with non-signficant values set to 0
     """
-    Turns a precision matrix into a partial correlation one
-    """
-    p = theta.shape[0]
-    partial_corr = np.zeros((p, p))
-    for i in range(p):
-        for j in range(p):
-            partial_corr[i, j] = -theta[i, j] / np.sqrt(theta[i, i] * theta[j, j])
-    np.fill_diagonal(partial_corr, 1)
-    return partial_corr
+    n, p = X.shape
+    output_partial_corr = np.zeros((p, p))
+    partial_corr, p_vals = partial_correlation_p_value(X)
+    ind = np.triu_indices(p, k=1)
+    p_vals_flat = p_vals[ind].flatten()
+    par_corr_values = partial_corr[ind].flatten()
+    _, corrected_vals, _, _ = multipletests(p_vals_flat)
+    reject = corrected_vals > significance_threshold
+    par_corr_values[reject] = 0
+    output_partial_corr[ind] = par_corr_values
+    np.fill_diagonal(output_partial_corr, 1)
+    return output_partial_corr + output_partial_corr.T
 
 def partial_correlation_p_value(X, no_permutes = 100):
-    lw = LedoitWolf()
-    lw.fit(X)
-    normal_partial_corr = precision_matrix_to_partial_corr(lw.precision_)
+    """
+    Calculates a partial correlation matrix and appropriate p-values using permutations
+
+    Parameters
+    ----------
+    X : array_like
+        n by p matrix containing the data
+    no_permutes : (optional, int=100)
+        Number of times to permute the variables to calculate the p-value
+
+    Returns
+    -------
+    (p by p correlation matrix, p-value matrix)
+    """
+    corr = np.corrcoef(X)
+    prec = np.linalg.inv(corr)
+    normal_partial_corr = methods.precision_matrix_to_partial_corr(prec)
     p = normal_partial_corr.shape[0]
     partial_correlation_values = np.zeros((no_permutes, p, p))
 
     for i in range(no_permutes):
         X_new = np.random.permutation(X)
-        lw = LedoitWolf()
-        lw.fit(X_new)
-        partial_correlation_values[i, :, :] = precision_matrix_to_partial_corr(lw.precision_)
+        corr = np.corrcoef(X)
+        prec = np.linalg.inv(corr)
+        partial_correlation_values[i, :, :] = methods.precision_matrix_to_partial_corr(prec)
 
     # Let's go through each value and look at it's p-value
     p_value_matrix = np.zeros((p, p))

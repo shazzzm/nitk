@@ -55,3 +55,24 @@ def matrix_similarity(A, B):
     num_wrong = np.count_nonzero(~X)
 
     return (num_correct, num_wrong)
+
+def precision_matrix_to_partial_corr(theta):
+    """
+    Turns a precision matrix into a partial correlation one
+
+    Parameters
+    ----------
+    theta : array_like
+        p by p precision matrix
+
+    Returns
+    -------
+    p by p partial correlation matrix
+    """
+    p = theta.shape[0]
+    partial_corr = np.zeros((p, p))
+    for i in range(p):
+        for j in range(p):
+            partial_corr[i, j] = -theta[i, j] / np.sqrt(theta[i, i] * theta[j, j])
+    np.fill_diagonal(partial_corr, 1)
+    return partial_corr
