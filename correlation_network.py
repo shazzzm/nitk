@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.covariance import LedoitWolf
+from statsmodels.stats.multitest import multipletests
 
 def correlation_p_value(x, y, no_permutes = 100):
     normal_corr = np.corrcoef(x, y)[0, 1]
@@ -20,14 +21,25 @@ def significant_correlation_matrix(X, significance_threshold = 0.05):
     """
     p = X.shape[1]
     output_corr = np.zeros((p, p))
-
+    p_vals = np.zeros((p, p))
     for i in range(p):
-        for j in range(p):
+        for j in range(i+1, p):
             corr, p_value = correlation_p_value(X[:, i], X[:, j])
-            if p_value < significance_threshold:
-                output_corr[i, j] = corr
+            output_corr[i, j] = corr
+            p_vals[i, j] = p_value
 
-    return output_corr
+    #corr += corr.T
+
+    # Run a test to correct for the multiple comparisons
+    ind = np.triu_indices(p, k=1)
+    p_vals_flat = p_vals[ind].flatten()
+    reject, corrected_vals, alpha_sidak, alpha_bonf = multipletests(p_vals_flat)
+    reject = corrected_vals > 0.05
+    corrs = output_corr[ind].flatten()
+    corrs[reject] = 0
+    output_corr[ind] = corrs
+    np.fill_diagonal(output_corr, 1)
+    return output_corr + output_corr.T
 
 def significant_partial_correlation_matrix(X, significance_threshold = 0.05):
     """

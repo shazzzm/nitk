@@ -31,6 +31,27 @@ def threshold_matrix(A, threshold, absolute=True, binary=False):
         A[A < threshold] = 0
 
     if binary:
-        A[A > 0] = 1
+        A[np.abs(A) > 0] = 1
 
     return A 
+
+def matrix_similarity(A, B):
+    """
+    Counts how similar the two matrices are
+    Parameters
+    ----------
+    A : array_like
+        p by p matrix
+    B : array_like
+        p by p matrix
+
+    Returns
+    -------
+    (int, int)
+        number of values that are the same, number that are different
+    """
+    X = A == B
+    num_correct = np.count_nonzero(X)
+    num_wrong = np.count_nonzero(~X)
+
+    return (num_correct, num_wrong)
