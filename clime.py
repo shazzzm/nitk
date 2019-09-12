@@ -69,6 +69,3 @@ class CLIME(BaseEstimator):
         for i in range(p):
             row = self._solve_row(cov, i)
             self.precision_[i, indices!=i] = row
-
-if __name__== "__main__":
-

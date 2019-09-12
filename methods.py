@@ -76,3 +76,26 @@ def precision_matrix_to_partial_corr(theta):
             partial_corr[i, j] = -theta[i, j] / np.sqrt(theta[i, i] * theta[j, j])
     np.fill_diagonal(partial_corr, 1)
     return partial_corr
+
+def make_matrix_symmetric(M):
+    """
+    Makes matrix M symmetric by comparing i and j and taking the smaller absolute value
+
+    Parameters
+    ----------
+    M : array_like
+        p by p matrix
+
+    Returns
+    -------
+    p by p matrix symmetric matrix
+    """
+    p = M.shape[0]
+    for i in range(p):
+        for j in range(i, p):
+            if np.abs(M[i, j]) < np.abs(M[j, i]):
+                M[j, i] = M[i, j]
+            else:
+                M[i, j] = M[j, i]
+
+    return M
