@@ -2,7 +2,7 @@ import numpy as np
 import methods
 import math
 import numpy as np
-from sklearn.linear_model import lars_path, Lasso
+from sklearn.linear_model import Lasso
 from sklearn.base import BaseEstimator
 
 class ScaledLasso(BaseEstimator):
@@ -103,7 +103,7 @@ class ScaledLassoInference(BaseEstimator):
         """
         n, p = X.shape
         indices = np.arange(p)
-        hsigma = np.zeros(p)
+        noise = np.zeros(p)
         beta = np.zeros((p, p))
         residuals = np.zeros((n, p))
         for i in range(p):
@@ -112,14 +112,14 @@ class ScaledLassoInference(BaseEstimator):
             sl = ScaledLasso()
             sl.fit(X_j, X[:, i])
             
-            hsigma[i] = sl.noise_
+            noise[i] = sl.noise_
             beta[indices!=i, i] = sl.coefs_/scalefac
             residuals[:,i] = np.power((X_i - X_j @ beta), 2)
 
-        hsigma = np.reciprocal(hsigma**2)
-        tTheta = np.diag(hsigma)
+        noise = np.reciprocal(noise**2)
+        tTheta = np.diag(noise)
         tTheta = -beta @ tTheta
         hTheta = methods.make_matrix_symmetric(tTheta)
         ind = np.diag_indices(p)
-        hTheta[ind] = hsigma
+        hTheta[ind] = noise
         self.precision_ = hTheta

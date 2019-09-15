@@ -12,32 +12,71 @@ import scipy
 
 class SPACE():
     """
-    Python implementation of SPACE. We use the C version of the Joint Sparse Regression model 
+    Estimates a partial correlation matrix using the SPACE method
+    proposed by Peng et al
+    
+    See
+    https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2770199/
+    for more information
+    Attributes
+    ----------
+    l1_reg : float 
+        Lasso regularization parameter
+    l2_reg : float
+        L2 regularization parameter
+    partial_correlation : p by p array
+        Estimated partial correlation matrix
+    precision_ : p by p array
+        Estimated precision matrix
+    sig_ : p by 1 array
+        Estimated noise in the problem (inverse of the diagonal of the 
+        precision matrix)
+    weight_ : p by 1 array 
+        Weight to give various nodes - currently not implemented
+    iter_ : 2
+        Number of iterations to run the method for (2/3 is usually sufficient)
+    verbose : bool
+        Whether to dump more information to the console
     """
-    def __init__(self, l1_reg, l2_reg=0, sig=None, weight=None, verbose=False):
-        self.l1_reg = l1_reg
-        self.l2_reg = l2_reg
-        self.l1_reg_ctype = ctypes.c_float(self.l1_reg)
-        self.l2_reg_ctype = ctypes.c_float(self.l2_reg)
-
+    def __init__(self, l1_reg, l2_reg=0, sig=None, weight=None, iter=2, verbose=False):
         self.sig_ = sig
-        self.weight = weight
+        self.weight_ = weight
+        self.partial_correlation_ = None
+        self.precision_ = None
+        self.iter_ = iter
+        self.verbose_ = verbose
 
-        self.lib = ctypes.CDLL("jsrm.so")   
-        self.fun = self.lib.JSRM
-        self.fun.restype = None
-        self.fun.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_float), 
+        # This is mostly magic so we can call the C code the authors have 
+        # kindly provided
+        self.l1_reg_ = l1_reg
+        self.l2_reg_ = l2_reg
+        self.l1_reg_ctype_ = ctypes.c_float(self.l1_reg_)
+        self.l2_reg_ctype_ = ctypes.c_float(self.l2_reg_)
+
+        self.lib_ = ctypes.CDLL("jsrm.so")   
+        self.fun_ = self.lib.JSRM
+        self.fun.restype_ = None
+        self.fun.argtypes_ = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_float), 
             ctypes.POINTER(ctypes.c_float), ndpointer(ctypes.c_float),ndpointer(ctypes.c_float), ctypes.POINTER(ctypes.c_int), 
             ctypes.POINTER(ctypes.c_int), ndpointer(ctypes.c_float)]
-        self.precision_ = None
-        self.verbose = verbose
 
-    def run_jsrm(self, X):
+
+    def _run_jsrm(self, X):
+        """
+        Calls the JSRM c code and returns the precision matrix it estimates out
+        Parameters
+        ----------
+        X : array_like
+            n by p matrix - data matrix
+
+        Returns
+        -------
+        p by p precision matrix estimated by the JSRM model
+        """
         X = X.copy()
         n, p = X.shape
         n_in = ctypes.c_int(n)
         p_in = ctypes.c_int(p)
-        #self.sig = np.array(self.sig)
         sigma_sr = np.sqrt(self.sig_).astype(np.float32)
         n_iter = ctypes.c_int(500)
         iter_count = ctypes.c_int(0)
@@ -55,53 +94,74 @@ class SPACE():
 
         return space_prec
 
-    def fit(self, X ,iter=2):
-        n, p = X.shape
-        update_sig = False
-        if self.sig_ is None:
-            update_sig = True
-            self.sig_ = np.ones(p, dtype=np.float32)
+    def fit(self, X):
+        """
+        Solves a scaled lasso problem for X and y
+        Parameters
+        ----------
+        X : array_like
+            n by p matrix - data matrix
+        y : array_like
+            n by 1 matrix - produced values
 
-        for i in range(iter):
-            space_prec = self.run_jsrm(X)
+        Returns
+        -------
+        """
+        n, p = X.shape
+        self.sig_ = np.ones(p, dtype=np.float32)
+
+        for i in range(self.iter_):
+            self.partial_correlation_ = self.run_jsrm(X)
             np.fill_diagonal(space_prec, 1)
             ind = np.triu_indices(p)
             coef = space_prec[ind]
-            beta = self.Beta_coef(coef, self.sig_)
-        
-            if not update_sig:
-                break
-            else: ## update sig or weight
-                self.sig_ = self.InvSig(X, beta)   
-            ### end updating WEIGHT and SIG
-        ### end iteration
+            self.precision_ = self.create_precision_matrix_estimate(coef)
+            self.sig_ = self.calculate_noise(X, beta)   
 
-        self.precision_ = space_prec
+    def calculate_noise (self, X):
+        """
+        Calculates the noise for this estimate of the off-diagonal
+        of the precision matrix 
+        Parameters
+        ----------
+        X : array_like
+            n by p matrix - data matrix
+        beta : array_like
+            p by p vector - estimate of the off-diagonal of the precision matrix  
 
-    def InvSig (self, X, beta):
-        ################### parameters
-        ### X:    n by p data matrix; should be standardized to sd 1;
-        ### beta: beta matrix for the regression model
+        Returns
+        -------
+        p by 1 vector containing the noise for each variable
+        """
         n,p = X.shape
-        beta = beta.copy()
         np.fill_diagonal(beta, 0)
-        X_hat = X @ beta
+        X_hat = X @ self.precision_
         residue = X - X_hat
         result = np.power(residue, 2).mean(axis=0)
         return np.reciprocal(result)
 
-    def Beta_coef(self, coef, sig):
-        ############## parameter
-        ### coef: rho^{ij}; 
-        ### sig: sig^{ii}
-        p = sig.shape[0]
+    def create_precision_matrix_estimate(self, coef):
+        """
+        Creates the estimate of the precision matrix given the 
+        off diagonal estimates (coef)
+        Parameters
+        ----------
+        X : array_like
+            p by p matrix containing the estimates of the off-diagonal 
+            values 
+
+        Returns
+        -------
+        p by 1 vector containing the noise for each variable
+        """
+        p = self.sig_.shape[0]
         result = np.zeros((p, p), dtype=np.float32)
         ind = np.triu_indices(p)
 
         result[ind] = coef
         result = result + result.T
-        reciprocal_diag_sig_sqrt = np.diag(np.reciprocal(np.sqrt(sig)))
-        diag_sig_sqrt = np.diag(np.sqrt(sig))
+        reciprocal_diag_sig_sqrt = np.diag(np.reciprocal(np.sqrt(self.sig_)))
+        diag_sig_sqrt = np.diag(np.sqrt(self.sig_))
         result = reciprocal_diag_sig_sqrt @ result @ diag_sig_sqrt
         result = result.T 
         return result.astype(np.float32)
