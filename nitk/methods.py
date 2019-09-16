@@ -92,7 +92,7 @@ def make_matrix_symmetric(M):
     """
     p = M.shape[0]
     for i in range(p):
-        for j in range(i, p):
+        for j in range(p):
             if np.abs(M[i, j]) < np.abs(M[j, i]):
                 M[j, i] = M[i, j]
             else:

@@ -161,7 +161,7 @@ class SCIOColumnwiseCV(SCIO):
         S_train = self.calculate_scaled_covariance(X_train)
         S_test = np.cov(X_test, rowvar=False)
         # Calculate the lambdas to check
-        lambdas = np.arange(0, 51)
+        lambdas = np.arange(0.005, 51)
         lambdas = lambdas/50
         test_errors = []
         for l in lambdas:
@@ -227,7 +227,7 @@ class SCIOOverallCV(SCIO):
         for train, test in kf.split(X):
             X_train = X[train, :]
             X_test = X[test, :]
-            lambdas = np.arange(0, 51)
+            lambdas = np.arange(0.005, 51)
             lambdas = lambdas/50
             likelihoods = []
             S_test = np.cov(X_test, rowvar=False)
