@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.covariance import LedoitWolf
 from statsmodels.stats.multitest import multipletests
-import methods
+from . import methods
 from sklearn.base import BaseEstimator
 
 class CorrelationPermutationNetwork(BaseEstimator):

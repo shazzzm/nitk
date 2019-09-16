@@ -9,7 +9,7 @@ from sklearn.model_selection import KFold
 from sklearn.utils.extmath import fast_logdet
 import collections
 from sklearn.base import BaseEstimator
-import methods
+from . import methods
 
 class SCIO(BaseEstimator):
     """

@@ -1,8 +1,8 @@
 import unittest
 from sklearn.datasets import make_sparse_spd_matrix
-import methods
+from nitk import methods
 import numpy as np
-from clime import CLIME
+from nitk.clime import CLIME
 
 class TestCLIME(unittest.TestCase):
     def test_clime(self):

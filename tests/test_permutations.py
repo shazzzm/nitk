@@ -1,8 +1,9 @@
 import unittest
 from sklearn.datasets import make_sparse_spd_matrix
-import correlation_permuter
-import methods
+from nitk import correlation_permuter
+from nitk import methods
 import numpy as np
+
 
 class TestCorrelationPermutation(unittest.TestCase):
     def test_correlation_permutation(self):

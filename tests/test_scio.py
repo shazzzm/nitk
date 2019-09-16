@@ -1,8 +1,8 @@
 import unittest
 from sklearn.datasets import make_sparse_spd_matrix
-import methods
 import numpy as np
-from scio import *
+from nitk.scio import *
+from nitk import methods
 
 class TestSCIO(unittest.TestCase):
     def test_scio(self):
