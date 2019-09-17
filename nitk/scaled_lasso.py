@@ -4,11 +4,7 @@ import math
 import numpy as np
 from sklearn.linear_model import Lasso
 from sklearn.base import BaseEstimator
-import rpy2.robjects as robjects
-from rpy2.robjects.packages import importr
-import rpy2.robjects.numpy2ri
-import numpy as np
-import rpy2.rinterface as rinterface
+
 class ScaledLasso(BaseEstimator):
     """
     Solves a regression problem using the 'Scaled Lasso' - 

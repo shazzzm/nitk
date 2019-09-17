@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import linprog
 from sklearn.datasets import make_sparse_spd_matrix
 from sklearn.base import BaseEstimator
+from nitk import methods
 
 class CLIME(BaseEstimator):
     """
@@ -36,17 +37,20 @@ class CLIME(BaseEstimator):
         e_i[i] = 1
         p = cov.shape[0]
         c = np.ones(2*p)
-        con = np.concatenate([cov, -cov], axis=1)
-        b1 = self.alpha_ - e_i
-        b2 = e_i + self.alpha_
-        con = np.concatenate([-np.eye(2*p), con, -con], axis=0)
+        con1 = np.concatenate([-cov, cov], axis=1)
+        b1 = np.ones(p) * self.alpha_
+        b1[i] = b1[i] - 1
+        b2 = np.ones(p) * self.alpha_
+        b2[i] = 1 + self.alpha_
+        con = np.concatenate([-np.eye(2*p), con1, -con1], axis=0)
         A_ub = con
         b_ub = np.concatenate([np.zeros(2*p), b1, b2])
         A_eq = np.zeros(A_ub.shape)
         b_eq = np.zeros(b_ub.shape)
         result = linprog(c, A_ub, b_ub, A_eq, b_eq)
         solution = result['x']
-        beta = solution[1:p] - solution[(p+1):(2*p)]
+        beta = solution[0:p] - solution[p:(2*p)]
+
         return beta
 
     def fit(self, X):
@@ -68,4 +72,6 @@ class CLIME(BaseEstimator):
         indices = np.arange(p)
         for i in range(p):
             row = self._solve_row(cov, i)
-            self.precision_[i, indices!=i] = row
+            self.precision_[i, :] = row
+
+        self.precision_ = methods.make_matrix_symmetric(self.precision_)
