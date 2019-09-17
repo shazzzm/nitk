@@ -21,7 +21,7 @@ class TestSCIO(unittest.TestCase):
         K = methods.threshold_matrix(K, 0.001, binary=True)
         prec_ = methods.threshold_matrix(sc.precision_, 0.001, binary=True)
 
-        print(methods.matrix_similarity(K,prec_))
+        #print(methods.matrix_similarity(K,prec_))
 
     def test_scio_cv_all(self):
         """
@@ -38,7 +38,7 @@ class TestSCIO(unittest.TestCase):
         K = methods.threshold_matrix(K, 0.001, binary=True)
         prec_ = methods.threshold_matrix(sc.precision_, 0.001, binary=True)
 
-        print(methods.matrix_similarity(K,prec_))
+        #print(methods.matrix_similarity(K,prec_))
 
     def test_scio_cv_columnwise(self):
         """
@@ -55,6 +55,6 @@ class TestSCIO(unittest.TestCase):
         K = methods.threshold_matrix(K, 0.001, binary=True)
         prec_ = methods.threshold_matrix(sc.precision_, 0.001, binary=True)
 
-        print(methods.matrix_similarity(K,prec_))
+        #print(methods.matrix_similarity(K,prec_))
 if __name__ == '__main__':
     unittest.main()

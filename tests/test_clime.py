@@ -21,7 +21,7 @@ class TestCLIME(unittest.TestCase):
         K = methods.threshold_matrix(K, 0.001, binary=True)
         prec_ = methods.threshold_matrix(cl.precision_, 0.001, binary=True)
 
-        print(methods.matrix_similarity(K,prec_))
+        #print(methods.matrix_similarity(K,prec_))
 
 
 if __name__ == '__main__':

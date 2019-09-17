@@ -36,18 +36,6 @@ class ScaledLasso(BaseEstimator):
         self.best_alpha_ = None
         self.noise_ = None
 
-    def _scaled_lasso_using_r(self, X, y):
-        """
-        Solves the regression problem with the scaled
-        lasso for the given data
-        """
-        rpy2.robjects.numpy2ri.activate()
-        scalreg = importr('scalreg')
-        outp = scalreg.scalreg(X, y, lam="univ")
-        hsigma_i, best_coef, res = outp[0][0], outp[1], np.array(outp[2])
-        self.noise_ = hsigma_i
-        self.coefs_ = best_coef
-
     def fit(self, X, y):
         """
         Solves a scaled lasso problem for X and y
@@ -107,6 +95,7 @@ class ScaledLassoInference(BaseEstimator):
 
     def __init__(self):
         self.precision_ = None
+        self.noise_ = None
 
     def fit(self, X):
         """
@@ -121,21 +110,20 @@ class ScaledLassoInference(BaseEstimator):
         indices = np.arange(p)
         noise = np.zeros(p)
         beta = np.zeros((p, p))
+        cov = np.cov(X.T)
+        scalefac = np.sqrt(np.var(X, axis=0))
         for i in range(p):
-            scalefac = np.sqrt(np.power(X[:, indices!=i], 2).sum(axis=0)/n)
-            X_i = np.divide(X[:, indices!=i], scalefac)
+            X_i = np.divide(X[:, indices!=i], scalefac[indices!=i])
             sl = ScaledLasso()
-            sl._scaled_lasso_using_r(X_i, X[:, i])
-            #sl.fit(X_i, X[:, i])
+            sl.fit(X_i, X[:, i])
             
             noise[i] = sl.noise_
-            beta[indices!=i, i] = sl.coefs_/scalefac
+            beta[indices!=i, i] = sl.coefs_/scalefac[indices!=i]
+            beta[i, i] = -1
+        self.noise_ = np.copy(noise)
 
-        noise = np.reciprocal(np.power(noise, 2))
+        noise = np.power(noise, -2)
         tTheta = np.diag(noise)
         tTheta = -beta @ tTheta
-        print(tTheta)
-        hTheta = methods.make_matrix_symmetric(tTheta)
-        ind = np.diag_indices(p)
-        hTheta[ind] = noise
-        self.precision_ = hTheta    
+        tTheta = methods.make_matrix_symmetric(tTheta)
+        self.precision_ = tTheta    

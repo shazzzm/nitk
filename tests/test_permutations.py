@@ -21,9 +21,5 @@ class TestCorrelationPermutation(unittest.TestCase):
         C = methods.threshold_matrix(C, 0.001, binary=True)
         corr = methods.threshold_matrix(corr, 0.001, binary=True)
 
-        print(methods.matrix_similarity(C,corr))
-        print(corr)
-        print(C)
-
 if __name__ == '__main__':
     unittest.main()

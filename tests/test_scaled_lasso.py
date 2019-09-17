@@ -21,8 +21,11 @@ class TestScaledLasso(unittest.TestCase):
         """
         rpy2.robjects.numpy2ri.activate()
         scalreg = importr('scalreg')
-        prec = scalreg.scalreg(X)
+        prec = scalreg.scalreg(X, lam0="univ")
+        noise = np.array(prec[1])
+        print(noise)
         prec = np.array(prec[0])
+        
         return prec
 
     def _scaled_lasso_using_r(self, X, y):
@@ -65,7 +68,7 @@ class TestScaledLasso(unittest.TestCase):
         sli.fit(X)
         prec_r = self._estimate_precision_matrix_using_r(X)
 
-        assert_array_almost_equal(prec_r, sli.precision_, decimal=3)
+        assert_array_almost_equal(prec_r, sli.precision_, decimal=2)
 
 if __name__ == '__main__':
     unittest.main()
