@@ -20,9 +20,10 @@ class SCIO(BaseEstimator):
     -----------
     alpha: regularization parameter to use - a larger value will give a sparser network
     """
-    def __init__(self, alpha):
+    def __init__(self, alpha, penalize_diag = False):
         self.alpha_ = alpha
         self.precision_ = None
+        self.penalize_diag = penalize_diag
 
     def fit(self, X):
         """
@@ -42,7 +43,7 @@ class SCIO(BaseEstimator):
         n = X.shape[0]
 
         # Calculate the addition to the diagonal
-        S = self.calculate_scaled_covariance(X)
+        #S = self.calculate_scaled_covariance(X)
         self.precision_ = np.zeros((p, p))
         for i in range(p):
             self.precision_[:, i] = self._solve_column_problem(S, i, self.alpha_).flatten()
@@ -69,6 +70,11 @@ class SCIO(BaseEstimator):
         beta = np.zeros(p)
         e = np.zeros(p)
         e[i] = 1
+
+        # Removes the penalization of the diagonal value
+        if not self.penalize_diag:
+            e[i] += alpha
+
         beta, _, _, _ = cd_fast.enet_coordinate_descent_gram(beta, alpha, 0, S, e, e, 100, 1e-4, check_random_state(None), False)
         return beta
 
@@ -140,8 +146,8 @@ class SCIOColumnwiseCV(SCIO):
     Parameters
     -----------
     """
-    def __init__(self):
-        self.precision_ = None
+    def __init__(self, penalize_diag=False):
+        super().__init__(None, penalize_diag)
 
     def _solve_column_with_cv(self, X, i):
         """
