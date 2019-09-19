@@ -91,8 +91,7 @@ class L2PenalizedEstimatorCV(L2PenalizedEstimator):
     """
     def __init__(self, n_splits=4):
         self.n_splits_ = n_splits
-        self.alpha_ = None
-        self.precision_ = None
+        super().__init__(None)
 
     def fit(self, X):
         """
@@ -108,18 +107,19 @@ class L2PenalizedEstimatorCV(L2PenalizedEstimator):
         """
         p = X.shape[1]
         prec = np.zeros((p, p))
-        kf = KFold(n_splits = n_splits)
+        kf = KFold(n_splits = self.n_splits_)
         l_likelihood = collections.defaultdict(list)
         for train, test in kf.split(X):
             X_train = X[train, :]
             X_test = X[test, :]
+            S_test = np.cov(X_test.T)
             lambdas = np.logspace(-1, 1)
             likelihoods = []
 
             for l in lambdas:
-                est = L2PenalizedEstimator()
-                est.fit(X_train, l)
-                likelihood = self.precision_likelihood_function(S_test, est.precision_)
+                est = L2PenalizedEstimator(l)
+                est.fit(X_train)
+                likelihood = self._precision_likelihood_function(S_test, est.precision_)
                 l_likelihood[l].append(likelihood)
 
         likelihoods = []
@@ -127,5 +127,8 @@ class L2PenalizedEstimatorCV(L2PenalizedEstimator):
             mean_likelihood = np.mean(l_likelihood[l])
             likelihoods.append(mean_likelihood)
         best_l_index = np.argmin(likelihoods)
-        self.precision_ = solve(X, lambdas[best_l_index])
+
+        est = L2PenalizedEstimator(l)
+        est.fit(X_train)
         self.alpha_ = lambdas[best_l_index]
+        super().fit(X)
