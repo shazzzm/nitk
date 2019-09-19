@@ -27,6 +27,14 @@ class DTRACE():
         self.iter_ = None
 
     def build_C(self, eigs):
+        """
+        Creates the C matrix mentioned in the paper where
+        C_ij = 2/(eigs[i] + eigs[j])
+        Parameters
+        ----------
+        eigs : array_like
+            p by 1 matrix - sorted array of eigenvalues of the covariance matrix
+        """
         p = eigs.shape[0]
         C = np.zeros((p, p))
 
@@ -37,6 +45,19 @@ class DTRACE():
         return C
 
     def solve_g(self, eigs, eigv, C, B):
+        """
+        Returns the value of the G function in the paper (equation 19)
+        Parameters
+        ----------
+        eigs : array_like
+            p by 1 matrix - sorted array of eigenvalues of the covariance matrix
+        eigv : array_like
+            p by p matrix - matrix of eigenvectors corresponding to the eigenvalues
+        C : array_like
+            p by p matrix - C matrix mentioned above
+        B : array_like
+            p by p matrix - B matrix from equation 19 (usually I + rho * Theta_ - delta_K)
+        """
 
         C = self.build_C(eigs)
 
@@ -66,9 +87,6 @@ class DTRACE():
                         output_theta[i, j] = theta[i, j] - l
 
         return output_theta
-
-    def solve_delta(self, delta, theta, theta_0, p):
-        return delta + p*(theta - theta_0)
 
     def eigenvalue_threshold(self, theta, e=0.01):
         """
