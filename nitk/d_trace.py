@@ -1,22 +1,65 @@
 import numpy as np
 import sklearn.datasets
+from . import methods
 
 class DTRACE():
+    """
+    Estimates a sparse precision matrix using the D-Trace loss,
+    proposed by Zhang and Zou.
+
+    See
+    https://academic.oup.com/biomet/article/101/1/103/2366063 
+
+    for more information
+
+    Attributes
+    ----------
+    precision_ : p by p matrix
+        Estimated precision matrix 
+    alpha_ : float
+        L1 regularization parameter
+    iter_ : int
+        Number of iterations to completion
+    """
     def __init__(self, alpha):
-        """
-        """
+        self.precision_ = None
         self.alpha_ = alpha
-    def solve_g(self, A, B):
-        return np.linalg.inv(A) @ B
+        self.iter_ = None
+
+    def build_C(self, eigs):
+        p = eigs.shape[0]
+        C = np.zeros((p, p))
+
+        for i in range(p):
+            for j in range(p):
+                C[i, j] = 2 / (eigs[i] + eigs[j])
+
+        return C
+
+    def solve_g(self, eigs, eigv, C, B):
+
+        C = self.build_C(eigs)
+
+        D = np.multiply(eigv.T @ B @ eigv, C)
+        return eigv @ D @ eigv.T
 
     def solve_S(self, theta, l):
+        """
+        Soft thresholding function 
+        Parameters
+        ----------
+        theta : array_like
+            p by p matrix - precision matrix
+        l : float
+            regularization paramter to threshold at
+        """
         p = theta.shape[0]
         output_theta = np.zeros((p, p))
         for i in range(p):
             for j in range(p):
                 if i == j:
-                    continue
-                if np.abs(theta[i, j]) > self.alpha_:
+                    output_theta[i, j] = theta[i, j]
+                if np.abs(theta[i, j]) > l:
                     if theta[i, j] < 0:
                         output_theta[i, j] = theta[i, j] + l
                     else:
@@ -27,35 +70,67 @@ class DTRACE():
     def solve_delta(self, delta, theta, theta_0, p):
         return delta + p*(theta - theta_0)
 
+    def eigenvalue_threshold(self, theta, e=0.01):
+        """
+        Ensures all the eigenvalues are positive and 
+        greater than e
+        theta : array_like
+            p by p matrix - precision matrix
+        e : float
+            minimum permitted eigenvalue
+        """
+        eigs, eigv = np.linalg.eig(theta)
+
+        eigs[eigs < e] = e
+        D = np.diag(eigs)
+
+        return eigv.T @ D @ eigv
+
+
     def fit(self, X):
+        """
+        Estimates the precision matrix of X using the DTRACE method
+        X : array_like
+            n by p matrix - data matrix
+        """
         n,p = X.shape
         rho = 1
         S = np.cov(X.T)
-        delta = np.zeros((p, p))
+        delta_0 = np.zeros((p, p))
+        delta_1 = np.zeros((p, p))
         theta_0 = np.zeros((p, p))
+        theta_1 = np.zeros((p, p))
         theta_diag = np.reciprocal(np.diag(S))
         ind = np.diag_indices(p)
         theta_0[ind] = theta_diag
-        prev_theta = theta_0.copy()
-        diff = np.inf
+        theta_1 = theta_0
+        prev_theta_hat = np.zeros((p, p))
+        prev_theta_0 = np.zeros((p, p))
+        diff_0 = np.inf
+        diff_1 = np.inf
 
-        while diff > 0.001:
-            theta_hat = self.solve_g(S + rho * np.eye(p), np.eye(p) + rho * theta_0 - delta)
-            theta_0 = self.solve_S(theta_hat + (1/rho)*delta, (1/rho)*self.alpha_)
-            delta = delta + rho * (theta_hat - theta_0)
-            diff = np.linalg.norm(prev_theta - theta_hat)
-            prev_theta = theta_hat.copy()
+        i = 0
 
-        return theta_hat
-if __name__=='__main__':
-    p = 100
-    n = 200
-    l = 0.1
-    P = sklearn.datasets.make_sparse_spd_matrix(dim=p, alpha=0.8, smallest_coef=.4, largest_coef=.7,)
-    C = np.linalg.inv(P)
-    X = np.random.multivariate_normal(np.zeros(p), C, n)
-    dt = DTRACE(alpha=l)
-    prec = dt.fit(X)
+        # Cache this relatively expensive bit of solving G
+        Z = S + rho * np.eye(p)
+        eigs, eigv = np.linalg.eig(Z)
+        ind = np.argsort(eigs)[::-1]
+        eigs = eigs[ind]
+        eigv = eigv[:, ind]
+        C = self.build_C(eigs)
 
-    prec[np.abs(prec) < 0.0001] = 0
-    
+        while (diff_0 > 10e-7 or diff_1 > 10e-7) and i < 100: 
+            theta_hat = self.solve_g(eigs, eigv, C, np.eye(p) + rho * theta_0 - delta_0)
+            theta_0 = self.solve_S(theta_hat + (1/rho)*delta_0, (1/rho)*self.alpha_)
+            #theta_1 = self.eigenvalue_threshold(theta_hat + delta_1/rho )
+            delta_0 = delta_0 + rho * (theta_hat - theta_0)
+            #delta_1 = delta_1 + rho * (theta_hat - theta_1)
+            diff_0 = np.linalg.norm(prev_theta_hat - theta_hat) / max(1, np.linalg.norm(theta_hat), np.linalg.norm(prev_theta_hat))
+            diff_1 = np.linalg.norm(prev_theta_0 - theta_0) / max(1, np.linalg.norm(theta_0), np.linalg.norm(prev_theta_0))
+            prev_theta_hat = theta_hat.copy()
+            prev_theta_0 = theta_0.copy()
+            i += 1
+            
+
+        self.precision_ = methods.threshold_matrix(theta_hat, 0.000001)
+        self.iter_ = i

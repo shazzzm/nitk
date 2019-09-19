@@ -87,6 +87,8 @@ class ScaledLassoInference(BaseEstimator):
     ----------
     precision_ : p by p matrix
         Estimated precision matrix 
+    noise_ : p by 1 vector
+        Estimation of the residual of each regression
     """
 
     def __init__(self):
