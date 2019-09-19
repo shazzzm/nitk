@@ -2,7 +2,7 @@ import numpy as np
 import sklearn.datasets
 from . import methods
 
-class DTRACE():
+class DTrace():
     """
     Estimates a sparse precision matrix using the D-Trace loss,
     proposed by Zhang and Zou.
@@ -150,5 +150,7 @@ class DTRACE():
             i += 1
             
 
-        self.precision_ = methods.threshold_matrix(theta_hat, 0.000001)
+        self.precision_ = methods.threshold_matrix(theta_hat, 0.0001)
         self.iter_ = i
+
+class DTraceCV
