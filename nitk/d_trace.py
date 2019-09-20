@@ -152,5 +152,3 @@ class DTrace():
 
         self.precision_ = methods.threshold_matrix(theta_hat, 0.0001)
         self.iter_ = i
-
-class DTraceCV
