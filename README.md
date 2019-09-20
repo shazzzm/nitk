@@ -1,7 +1,7 @@
 
 # Network Inference Toolkit
 
-A toolkit for inferring regularization partial correlation networks
+A toolkit for inferring regularized partial correlation networks
 
 ## Getting Started
 
