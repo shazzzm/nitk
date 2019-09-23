@@ -37,6 +37,15 @@ print(np.count_nonzero(sli.precision_))
 ```
 See if that works 
 
+## Testing
+
+If you're interested in running the tests they can be found in the /tests/ folder and are to
+be run with nose2. 
+
+If the authors have provided an implementation, we test the python version against that. This
+usually requires that you have R installed and the appropriate packages. We then use rpy2 to 
+interface between R and Python. 
+
 ## Authors
 
 * **Tristan Millington**
