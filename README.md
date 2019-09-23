@@ -37,8 +37,6 @@ print(np.count_nonzero(sli.precision_))
 ```
 See if that works 
 
-
-
 ## Authors
 
 * **Tristan Millington**
@@ -54,4 +52,5 @@ This project is licensed under the GNU GPL - see the [LICENSE.md](LICENSE.md) fi
 * DTrace - Sparse precision matrix estimation via lasso penalized D-trace loss - Zou and Zhang - https://doi.org/10.1093/biomet/ast059
 * Correlation Permutation - Estimates a sparse correlation matrix by permuting the dataset repeatedly to get a p-value to see if the correlation between two variables is just as likely to occur through noise 
 * Scaled Lasso - "Sparse Matrix Inversion with Scaled Lasso" by Sun and Zhang - http://www.jmlr.org/papers/volume14/sun13a/sun13a.pdf
+* Neighbourhood Selection - "High-dimensional graphs and variable selection with the Lasso" - https://projecteuclid.org/euclid.aos/1152540754#info
 
