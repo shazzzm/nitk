@@ -9,6 +9,7 @@ from scipy.stats import norm
 import sklearn.datasets
 import sklearn.linear_model as lm
 import scipy
+import os
 
 class SPACE():
     """
@@ -59,10 +60,12 @@ class SPACE():
         self.l1_reg_ctype_ = ctypes.c_float(self.l1_reg_)
         self.l2_reg_ctype_ = ctypes.c_float(self.l2_reg_)
 
-        self.lib_ = ctypes.CDLL("jsrm.so")   
-        self.fun_ = self.lib.JSRM
-        self.fun.restype_ = None
-        self.fun.argtypes_ = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_float), 
+        # This is a bit of a hack to find out where jsrm.so is
+        cur_dir = os.path.abspath(__file__)[:-8]
+        self.lib_ = ctypes.CDLL(cur_dir + "jsrm_mac.so")   
+        self.fun_ = self.lib_.JSRM
+        self.fun_.restype = None
+        self.fun_.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_float), 
             ctypes.POINTER(ctypes.c_float), ndpointer(ctypes.c_float),ndpointer(ctypes.c_float), ctypes.POINTER(ctypes.c_int), 
             ctypes.POINTER(ctypes.c_int), ndpointer(ctypes.c_float)]
 
@@ -95,7 +98,7 @@ class SPACE():
         sigma_sr_in = sigma_sr.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         beta_out = beta.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         space_prec = np.reshape(beta, (p, p))
-        self.fun(ctypes.byref(n_in), ctypes.byref(p_in), ctypes.byref(self.l1_reg_ctype), ctypes.byref(self.l2_reg_ctype), X, sigma_sr, ctypes.byref(n_iter), ctypes.byref(n_iter_out), beta)
+        self.fun_(ctypes.byref(n_in), ctypes.byref(p_in), ctypes.byref(self.l1_reg_ctype_), ctypes.byref(self.l2_reg_ctype_), X, sigma_sr, ctypes.byref(n_iter), ctypes.byref(n_iter_out), beta)
         space_prec = np.reshape(beta, (p, p))
 
         return space_prec
@@ -118,7 +121,7 @@ class SPACE():
 
         for i in range(self.iter_):
             if self.solver_ == 'c':
-                self.partial_correlation_ = self.run_jsrm(X)
+                self.partial_correlation_ = self._run_jsrm(X)
             elif self.solver_ == 'python':
                 lasso = lm.Lasso(self.l1_reg/(X_inp.shape[0]))
                 lasso.fit(X_inp, y_inp)
@@ -128,7 +131,7 @@ class SPACE():
             ind = np.triu_indices(p)
             coef = self.partial_correlation_[ind]
             self.precision_ = self.create_precision_matrix_estimate(coef)
-            self.sig_ = self.calculate_noise(X, beta)   
+            self.sig_ = self.calculate_noise(X)   
 
     def calculate_noise (self, X):
         """
@@ -146,8 +149,9 @@ class SPACE():
         p by 1 vector containing the noise for each variable
         """
         n,p = X.shape
-        np.fill_diagonal(beta, 0)
-        X_hat = X @ self.precision_
+        precision = self.precision_.copy()
+        np.fill_diagonal(precision, 0)
+        X_hat = X @ precision
         residue = X - X_hat
         result = np.power(residue, 2).mean(axis=0)
         return np.reciprocal(result)
