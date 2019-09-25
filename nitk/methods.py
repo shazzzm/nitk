@@ -162,3 +162,22 @@ def calculate_matrix_accuracy(M_true, M_est, include_diag=False):
         fpr = fp / (fp + tn)
 
     return (tpr, fpr, precision)
+
+def calculate_f1_score(recall, precision):
+    """
+    Calculates the F1 score from the recall (tpr) and precison
+    
+    Parameters
+    ----------
+    recall : float
+    recall or true positive rate
+    precision : float
+    precision
+
+    Returns
+    -------
+    float : f1_score
+    """
+    if recall == 0 and precision == 0:
+        return 0
+    return 2 * recall * precision / ( recall + precision )

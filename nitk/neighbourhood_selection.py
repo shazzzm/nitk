@@ -64,14 +64,62 @@ class NeighbourhoodSelection(BaseEstimator):
         prec : array_like
             p by p matrix - estimated precision matrix 
         """
+        raise NotImplementedError()
         n, p = X.shape
         indices = np.arange(p)
         err = 0
         for i in range(p):
             pass                                                                                                                                                                               
 
+class NeighbourhoodSelectionColumnwiseCV(NeighbourhoodSelection):
+    """
+    Implementation of neighbourhood selection by Meinshausen and Bulhmann
+    where we do cross validation on each column to estimate a regularization
+    parameter
+
+    See
+    https://projecteuclid.org/euclid.aos/1152540754
+
+    for more information
+
+    Attributes
+    ----------
+    precision_ : array_like
+    Estimated precision matrix
+    alpha_ : float
+    Regularization parameter
+    """
+    def __init__(self):
+        super().__init__(None)
 
 
+    def fit(self, X):
+        """
+        Runs p lasso problems to estimate the off-diagonal of the precision
+        matrix 
+        Parameters
+        ----------
+        X : array_like
+            n by p matrix - data matrix
+        Returns
+        ----------
+        """
+        n, p = X.shape
+        indices = np.arange(p)
+        self.precision_ = np.zeros((p, p))
+        self.alpha_ = np.zeros(p)
+        for i in range(p):
+            X_new = X[:, indices!=i]
+            y = X[:, i]
 
- 
-        
+            l = lm.LassoCV()
+            l.fit(X_new, y)
+            y_hat = X_new @ l.coef_
+            res = ((y - y_hat)**2).mean()
+
+            # Estimate the diagonal
+            self.precision_[i, i] = 1/res
+            # Then the off-diagonal
+            self.precision_[indices!=i, i] = -l.coef_/self.precision_[i, i]
+
+            self.alpha_[i] = l.alpha_
