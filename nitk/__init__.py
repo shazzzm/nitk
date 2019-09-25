@@ -4,3 +4,4 @@ from .neighbourhood_selection import NeighbourhoodSelection, NeighbourhoodSelect
 from.threshold_estimator import ThresholdEstimator, ThresholdEstimatorCV
 from .space import SPACE, SPACE_BIC
 from . import methods
+from.scaled_lasso import ScaledLasso, ScaledLassoInference

@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 from sklearn.covariance import GraphicalLassoCV
 from sklearn.datasets import make_sparse_spd_matrix
 
-p = 100
-n = 20
+p = 200
+n = 50
 K = make_sparse_spd_matrix(p)
 C = np.linalg.inv(K)
 X = np.random.multivariate_normal(np.zeros(p), C, n)
@@ -33,7 +33,14 @@ gl = GraphicalLassoCV()
 gl.fit(X)
 tpr, fpr, prec = nitk.methods.calculate_matrix_accuracy(K, gl.precision_)
 gl_f1 = nitk.methods.calculate_f1_score(tpr, prec)
+
+sli = nitk.ScaledLassoInference()
+sli.fit(X)
+tpr, fpr, prec = nitk.methods.calculate_matrix_accuracy(K, sli.precision_)
+sli_f1 = nitk.methods.calculate_f1_score(tpr, prec)
+
 print("Graphical Lasso: %s" % gl_f1)
 print("Neighbourhood Selection: %s" % ns_f1)
 print("Threshold Estimator: %s" % te_f1)
 print("SCIO %s" % sc_f1)
+print("Scaled Lasso %s" % sli_f1)
