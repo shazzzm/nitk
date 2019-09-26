@@ -16,6 +16,15 @@ no_runs = 5
 network_structure = "uniform"
 network_structure = "power law"
 
+# Whether we add noise to the system
+noise = True
+
+# Make the system heavy tailed
+lognormal = False
+
+# Add some outliers to the system
+num_outliers = 0
+
 ns_f1 = np.zeros(no_runs)
 ts_f1 = np.zeros(no_runs)
 sc_f1 = np.zeros(no_runs)
@@ -36,6 +45,17 @@ for i in range(no_runs):
         K = (1 - alpha) * np.eye(p) + alpha * nx.to_numpy_array(L)
     C = np.linalg.inv(K)
     X = np.random.multivariate_normal(np.zeros(p), C, n)
+
+    if noise:
+        X += np.random.multivariate_normal(np.zeros(p), np.eye(p), n)
+
+    if lognormal:
+        X = np.exp(X)
+
+    if num_outliers > 0:
+        ind = np.random.choice(n, size=num_outliers)
+        Y = np.random.multivariate_normal(np.ones(p), np.eye(p), num_outliers)
+        X[ind] = Y
 
     ns = nitk.NeighbourhoodSelectionColumnwiseCV()
     ns.fit(X)

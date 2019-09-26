@@ -9,10 +9,23 @@ from sklearn.covariance import GraphicalLasso
 from sklearn.datasets import make_sparse_spd_matrix
 import networkx as nx
 
+# Set the parameters here
 p = 50
 n = 10
 no_runs = 5
-network_structure = "caveman"
+
+# Degree distribution of the network
+# Can be caveman, uniform or power law
+network_structure = "uniform" 
+
+# Whether we add noise to the system
+noise = True
+
+# Make the system heavy tailed
+lognormal = False
+
+# Add some outliers to the system
+num_outliers = 2
 
 scio_auc = np.zeros(no_runs)
 glasso_auc =  np.zeros(no_runs)
@@ -36,6 +49,18 @@ for i in range(no_runs):
 
     C = np.linalg.inv(K)
     X = np.random.multivariate_normal(np.zeros(p), C, n)
+
+    if noise:
+        X += np.random.multivariate_normal(np.zeros(p), np.eye(p), n)
+
+    if lognormal:
+        X = np.exp(X)
+
+    if num_outliers > 0:
+        ind = np.random.choice(n, size=num_outliers)
+        Y = np.random.multivariate_normal(np.ones(p), np.eye(p), num_outliers)
+        X[ind] = Y
+
     S = np.cov(X.T)
     offdiag_ind = ~np.eye(p, dtype=bool)
     lambda_max = np.abs(S[offdiag_ind]).max()
