@@ -7,11 +7,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.covariance import GraphicalLasso
 from sklearn.datasets import make_sparse_spd_matrix
-    
+import networkx as nx
 
-p = 100
+p = 50
 n = 10
-no_runs = 10
+no_runs = 5
+network_structure = "caveman"
 
 scio_auc = np.zeros(no_runs)
 glasso_auc =  np.zeros(no_runs)
@@ -21,7 +22,18 @@ space_auc = np.zeros(no_runs)
 clime_auc = np.zeros(no_runs)
 
 for i in range(no_runs):
-    K = make_sparse_spd_matrix(p)
+    if network_structure == "uniform":
+        K = make_sparse_spd_matrix(p)
+    elif network_structure == "power law":
+        L = nx.barabasi_albert_graph(p, 5)
+        alpha = 0.8
+        K = (1 - alpha) * np.eye(p) + alpha * nx.to_numpy_array(L)
+    elif network_structure == "caveman":
+        no_cliques = int(p/5)
+        L = nx.caveman_graph(no_cliques, 5)
+        alpha = 0.8
+        K = (1 - alpha) * np.eye(p) + alpha * nx.to_numpy_array(L)
+
     C = np.linalg.inv(K)
     X = np.random.multivariate_normal(np.zeros(p), C, n)
     S = np.cov(X.T)
