@@ -19,7 +19,7 @@ no_runs = 5
 network_structure = "uniform" 
 
 # Whether we add noise to the system
-noise = True
+noise = False
 
 # Make the system heavy tailed
 lognormal = False
@@ -126,13 +126,16 @@ for i in range(no_runs):
     clime_precision = []
 
     for l in ls:
-        cl = nitk.CLIME(l)
-        cl.fit(X)
-        tpr, fpr, prec = nitk.methods.calculate_matrix_accuracy(K, cl.precision_)
+        try:
+            cl = nitk.CLIME(l)
+            cl.fit(X)
+            tpr, fpr, prec = nitk.methods.calculate_matrix_accuracy(K, cl.precision_)
 
-        clime_tpr.append(tpr)
-        clime_fpr.append(fpr)
-        clime_precision.append(prec)
+            clime_tpr.append(tpr)
+            clime_fpr.append(fpr)
+            clime_precision.append(prec)
+        except FloatingPointError as e:
+            print(e)
 
     threshold_tpr = []
     threshold_fpr = []

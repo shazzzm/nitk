@@ -11,11 +11,15 @@ class CLIME(BaseEstimator):
 
     Parameters
     -----------
-    alpha: regularization parameter to use - a smaller value will give a sparser network
+    alpha : float
+        regularization parameter to use - a smaller value will give a sparser network
+    perturb : bool
+        whether to add a bit to the diagonal to make the problem nicer
     """
-    def __init__(self, alpha):
+    def __init__(self, alpha, perturb=False):
         self.precision_ = None
         self.alpha_ = alpha
+        self.perturb_ = perturb
         
     def _solve_row(self, cov, i):
         """
@@ -48,10 +52,13 @@ class CLIME(BaseEstimator):
         A_eq = np.zeros(A_ub.shape)
         b_eq = np.zeros(b_ub.shape)
         result = linprog(c, A_ub, b_ub, A_eq, b_eq)
+        #if result['success']:
         solution = result['x']
         beta = solution[0:p] - solution[p:(2*p)]
 
         return beta
+        #else:
+        #    raise FloatingPointError("Optimizer could not find a solution")
 
     def fit(self, X):
         """
@@ -70,6 +77,17 @@ class CLIME(BaseEstimator):
         self.precision_ = np.zeros((p, p))
         cov = np.cov(X.T)
         indices = np.arange(p)
+
+        if self.perturb_:
+            eigs, _ = np.linalg.eig(cov)
+            perturb_val = eigs.max() - p * eigs.min()
+            if perturb_val > 0:
+                perturb_val = perturb_val / p
+            else:
+                perturb_val = 0
+            
+            cov = cov + perturb_val * np.eye(p)
+
         for i in range(p):
             row = self._solve_row(cov, i)
             self.precision_[i, :] = row

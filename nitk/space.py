@@ -62,7 +62,7 @@ class SPACE():
 
         # This is a bit of a hack to find out where jsrm.so is
         cur_dir = os.path.abspath(__file__)[:-8]
-        self.lib_ = ctypes.CDLL(cur_dir + "jsrm_mac.so")   
+        self.lib_ = ctypes.CDLL(cur_dir + "jsrm.so")   
         self.fun_ = self.lib_.JSRM
         self.fun_.restype = None
         self.fun_.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_float), 

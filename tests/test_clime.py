@@ -18,7 +18,7 @@ class TestCLIME(unittest.TestCase):
         """
         rpy2.robjects.numpy2ri.activate()
         clime = importr('clime')
-        prec = clime.clime(X, np.array([l]), perturb=False, standardize=False, linsolver="simplex")
+        prec = clime.clime(X, np.array([l]), perturb=True, standardize=False, linsolver="simplex")
         prec = np.array(prec[0][0])
 
         return prec
@@ -27,16 +27,17 @@ class TestCLIME(unittest.TestCase):
         Generates a distribution with a sparse precision matrix and sees if the non-zero values are correctly picked up
         by the CLIME
         """
-        p = 10
-        n = 200
+        p = 50
+        n = 10
         K = make_sparse_spd_matrix(p, 0.7)
         C = np.linalg.inv(K)
         X = np.random.multivariate_normal(np.zeros(p), C, n)
         l = 0.5
-        cl = CLIME(l)
+        r_prec = self._estimate_precision_matrix_using_r(X, l)
+        print(r_prec)
+        cl = CLIME(l, True)
         cl.fit(X)
 
-        r_prec = self._estimate_precision_matrix_using_r(X, l)
         assert_array_almost_equal(r_prec, cl.precision_, decimal=2)
 
 if __name__ == '__main__':
