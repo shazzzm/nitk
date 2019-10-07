@@ -10,22 +10,23 @@ from sklearn.datasets import make_sparse_spd_matrix
 import networkx as nx
 
 # Set the parameters here
-p = 50
-n = 10
-no_runs = 5
+p = 200
+n = 50
+no_runs = 50
 
 # Degree distribution of the network
 # Can be caveman, uniform or power law
-network_structure = "uniform" 
+network_structure = "power law" 
 
 # Whether we add noise to the system
 noise = False
 
 # Make the system heavy tailed
-lognormal = False
+# We use a students t-distribution to do this
+heavytails = False
 
 # Add some outliers to the system
-num_outliers = 2
+num_outliers = 0
 
 scio_auc = np.zeros(no_runs)
 glasso_auc =  np.zeros(no_runs)
@@ -33,6 +34,7 @@ threshold_auc =  np.zeros(no_runs)
 ns_auc =  np.zeros(no_runs)
 space_auc = np.zeros(no_runs)
 clime_auc = np.zeros(no_runs)
+#d_trace_auc = np.zeros(no_runs)
 
 for i in range(no_runs):
     if network_structure == "uniform":
@@ -53,8 +55,10 @@ for i in range(no_runs):
     if noise:
         X += np.random.multivariate_normal(np.zeros(p), np.eye(p), n)
 
-    if lognormal:
-        X = np.exp(X)
+    if heavytails:
+        X = np.random.standard_t(5, size=(n, p))
+        L = np.linalg.cholesky(C)
+        X = X @ L
 
     if num_outliers > 0:
         ind = np.random.choice(n, size=num_outliers)
@@ -157,10 +161,10 @@ for i in range(no_runs):
     clime_auc[i] = np.trapz(clime_tpr, clime_fpr)
     threshold_auc[i] = np.trapz(threshold_tpr, threshold_fpr)
 
-print("Glasso Mean AUC: %s ± %s" % (np.mean(glasso_auc), np.std(glasso_auc)))
-print("Neighbourhood Selection Mean AUC: %s ± %s" % (np.mean(ns_auc), np.std(ns_auc)))
-print("SCIO Mean AUC: %s ± %s" % (np.mean(scio_auc), np.std(scio_auc)))
-print("SPACE Mean AUC: %s ± %s" % (np.mean(space_auc), np.std(space_auc)))
-print("CLIME Mean AUC: %s ± %s" % (np.mean(clime_auc), np.std(clime_auc)))
-print("Threshold Mean AUC: %s ± %s" % (np.mean(threshold_auc), np.std(threshold_auc)))
+print("Glasso & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(glasso_auc), np.std(glasso_auc)))
+print("Neighbourhood Selection & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(ns_auc), np.std(ns_auc)))
+print("SCIO & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(scio_auc), np.std(scio_auc)))
+print("SPACE & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(space_auc), np.std(space_auc)))
+print("CLIME & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(clime_auc), np.std(clime_auc)))
+print("Threshold & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(threshold_auc), np.std(threshold_auc)))
 

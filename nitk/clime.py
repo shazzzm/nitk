@@ -16,7 +16,7 @@ class CLIME(BaseEstimator):
     perturb : bool
         whether to add a bit to the diagonal to make the problem nicer
     """
-    def __init__(self, alpha, perturb=False):
+    def __init__(self, alpha, perturb=True):
         self.precision_ = None
         self.alpha_ = alpha
         self.perturb_ = perturb
