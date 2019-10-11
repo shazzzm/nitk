@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 from sklearn.covariance import GraphicalLasso
 from sklearn.datasets import make_sparse_spd_matrix
 import networkx as nx
+from sklearn.preprocessing import StandardScaler
 
 # Set the parameters here
-p = 200
+p = 100
 n = 50
 no_runs = 50
 
@@ -38,16 +39,18 @@ clime_auc = np.zeros(no_runs)
 
 for i in range(no_runs):
     if network_structure == "uniform":
-        K = make_sparse_spd_matrix(p)
+        K = make_sparse_spd_matrix(p, norm_diag=True)
     elif network_structure == "power law":
-        L = nx.barabasi_albert_graph(p, 5)
+        L = nx.to_numpy_array(nx.barabasi_albert_graph(p, 5))
+        np.fill_diagonal(L, 1)
         alpha = 0.8
-        K = (1 - alpha) * np.eye(p) + alpha * nx.to_numpy_array(L)
+        K = (1 - alpha) * np.eye(p) + alpha * L
     elif network_structure == "caveman":
         no_cliques = int(p/5)
-        L = nx.caveman_graph(no_cliques, 5)
+        L = nx.to_numpy_array(nx.caveman_graph(no_cliques, 5))
+        np.fill_diagonal(L, 1)
         alpha = 0.8
-        K = (1 - alpha) * np.eye(p) + alpha * nx.to_numpy_array(L)
+        K = (1 - alpha) * np.eye(p) + alpha * L
 
     C = np.linalg.inv(K)
     X = np.random.multivariate_normal(np.zeros(p), C, n)
@@ -64,6 +67,9 @@ for i in range(no_runs):
         ind = np.random.choice(n, size=num_outliers)
         Y = np.random.multivariate_normal(np.ones(p), np.eye(p), num_outliers)
         X[ind] = Y
+
+    ss = StandardScaler()
+    X = ss.fit_transform(X)
 
     S = np.cov(X.T)
     offdiag_ind = ~np.eye(p, dtype=bool)

@@ -2,7 +2,7 @@ import unittest
 from sklearn.datasets import make_sparse_spd_matrix
 from nitk import methods
 import numpy as np
-from nitk.clime import CLIME
+from nitk.clime import CLIME, CLIMECV
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 import rpy2.robjects.numpy2ri
@@ -39,6 +39,23 @@ class TestCLIME(unittest.TestCase):
         cl.fit(X)
 
         assert_array_almost_equal(r_prec, cl.precision_, decimal=2)
+
+
+    def test_clime_cv(self):
+        """
+        Sees how CLIME performs when we use cross validation to select lambda
+        """
+        p = 50
+        n = 10
+        K = make_sparse_spd_matrix(p, 0.7)
+        C = np.linalg.inv(K)
+        X = np.random.multivariate_normal(np.zeros(p), C, n)
+        l = 0.5
+        r_prec = self._estimate_precision_matrix_using_r(X, l)
+        print(r_prec)
+        cl = CLIMECV(True)
+        cl.fit(X)
+        print(cl.precision_)
 
 if __name__ == '__main__':
     unittest.main()

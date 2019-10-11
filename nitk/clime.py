@@ -3,6 +3,9 @@ from scipy.optimize import linprog
 from sklearn.datasets import make_sparse_spd_matrix
 from sklearn.base import BaseEstimator
 from nitk import methods
+from sklearn.model_selection import KFold
+import collections
+from sklearn.utils.extmath import fast_logdet
 
 class CLIME(BaseEstimator):
     """
@@ -93,3 +96,105 @@ class CLIME(BaseEstimator):
             self.precision_[i, :] = row
 
         self.precision_ = methods.make_matrix_symmetric(self.precision_)
+
+class CLIMECV(BaseEstimator):
+    """
+    Estimates a sparse precision matrix using the CLIME - "A Constrained ℓ1 Minimization Approach to Sparse Precision Matrix Estimation"
+    by Cai et al and estimates the regularization parameter using cross validation.
+    See https://amstat.tandfonline.com/doi/abs/10.1198/jasa.2011.tm10155#.XXkp6vfTVhE for more details
+
+    Parameters
+    -----------
+    alpha : float
+        regularization parameter decided by CV
+    perturb : bool
+        whether to add a bit to the diagonal to make the problem nicer
+    n_splits : int
+        number of CV splits to use
+    loss : str
+        which loss function to use (choices are likelihood or trace)
+    """
+    def __init__(self, perturb=False,  n_splits=3, loss="likelihood"):
+        self.perturb_ = perturb
+        self.precision_ = None
+        self.n_splits_ = n_splits
+        self.loss_ = loss
+
+    def fit(self, X):
+        """
+        Runs the CLIME algorithm with cross validation to decide lambda
+
+        Parameters
+        ----------
+        X : array_like
+            n by p matrix - Dataset to estimate the precision matrix of
+
+        Returns
+        -------
+        None
+        """
+        lambdas = np.logspace(-3, 0)
+        p = X.shape[1]
+        prec = np.zeros((p, p))
+        kf = KFold(n_splits = self.n_splits_)
+        l_likelihood = collections.defaultdict(list)
+        for train, test in kf.split(X):
+            X_train = X[train, :]
+            X_test = X[test, :]
+            likelihoods = []
+            S_test = np.cov(X_test, rowvar=False)
+
+            for l in lambdas:
+                cl = CLIME(l)
+                cl.fit(X)
+                prec = cl.precision_
+                if self.loss_ == "likelihood":
+                    likelihood = self.likelihood(S_test, prec)
+                elif self.loss_ == "trace":
+                    likelihood = self.trace_l2_loss(S_test, prec)
+                l_likelihood[l].append(likelihood)
+
+        likelihoods = []
+        for l in l_likelihood:
+            mean_likelihood = np.mean(l_likelihood[l])
+            likelihoods.append(mean_likelihood)
+        best_l_index = np.argmin(likelihoods)
+        cl = CLIME(lambdas[best_l_index])
+        cl.fit(X)
+        self.precision_ = cl.precision_
+
+    def likelihood(self, S, theta):
+        """
+        Likelihood function for a Gaussian model
+        Parameters
+        ----------
+        S : array_like
+            p by p matrix - Covariance matrix of problem
+        theta : array_like
+            estimated precision matrix 
+ 
+        Returns
+        -------
+        float - Gaussian loglikelihood of the estimated model
+        """
+        p = S.shape[0]
+        log_likelihood_ = -fast_logdet(theta) + np.trace(S @ theta)    
+        log_likelihood_ -= p * np.log(2 * np.pi)
+        return log_likelihood_     
+
+    def trace_l2_loss(self, S, theta):
+        """
+        CLIME specific loss function - sum(trace(Sigma * Theta - I) ^ 2)
+        Doesn't require the precision matrix to be positive definite
+        Parameters
+        ----------
+        S : array_like
+            p by p matrix - Covariance matrix of problem
+        theta : array_like
+            estimated precision matrix 
+ 
+        Returns
+        -------
+        float - model loss
+        """
+        return 
