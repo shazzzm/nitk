@@ -10,7 +10,7 @@ import sklearn.datasets
 import sklearn.linear_model as lm
 import scipy
 import os
-
+import collections
 class SPACE():
     """
     Estimates a partial correlation matrix using the SPACE method
@@ -105,13 +105,12 @@ class SPACE():
 
     def fit(self, X):
         """
-        Solves a scaled lasso problem for X and y
+        Estimates a sparse partial correlation and precision matrix for X
+        using the SPACE algorithm
         Parameters
         ----------
         X : array_like
             n by p matrix - data matrix
-        y : array_like
-            n by 1 matrix - produced values
 
         Returns
         -------
@@ -181,6 +180,40 @@ class SPACE():
         result = reciprocal_diag_sig_sqrt @ result @ diag_sig_sqrt
         result = result.T 
         return result.astype(np.float32)
+
+    def rss_loss(self, X, prec, sig):
+        """
+        Calculates the RSS error for the given SPACE solution for 
+        dataset X
+
+        Parameters
+        ----------
+        X : array_like
+            n by p data matrix
+        prec : array_like
+            p by p estimate of the precision matrix
+        sig : array_like
+            p by 1 estimate of the noise
+
+        Returns
+        -------
+        float - RSS of the problem
+        """
+        n, p = X.shape
+        total_rss = 0
+        indices = np.arange(p)
+        for i in range(p):
+            rss_i = 0
+            predict = 0
+            vec_rss_i = 0
+            for j in range(p):
+                if i == j:
+                    continue
+                predict += prec[i, j] * np.sqrt(sig[j] / sig[i]) * X[:, j]     
+            residual = np.power(X[:, i] - predict, 2).sum()
+            total_rss += residual
+
+        return residual
 
     def build_input(self, X):
         """
@@ -285,7 +318,7 @@ class SPACE_BIC():
             print("Running %s" % l1_reg)
         s = SPACE(l1_reg, l2_reg)
         s.fit(X)
-        return s.precision_, s.sig_
+        return s.partial_correlation_, s.sig_
 
     def fit(self, X):
         """
@@ -374,31 +407,93 @@ class SPACE_BIC():
 
         return total_bic
 
-if __name__=="__main__":
-    # A trivial example to show the methods
-    n = 10 
-    p = 5
-    P = sklearn.datasets.make_sparse_spd_matrix(dim=p, alpha=0.7, smallest_coef=.4, largest_coef=.7, norm_diag=True)
-    C = np.linalg.inv(P)
-    X = np.random.multivariate_normal(np.zeros(p), C, n)
-    ss = StandardScaler()
-    X = ss.fit_transform(X)
-    S = np.cov(X.T)
-    off_diag_ind = ~np.eye(p, dtype=bool)
-    max_l = n*np.abs(S[off_diag_ind]).max()
-    space = SPACE(max_l)
-    space.fit(X)
-    print(space.precision_)
-    print(space.python_solve(X))
+class SPACECV(SPACE):
+    """
+    Estimates a partial correlation matrix using the SPACE method
+    proposed by Peng et al and the corresponding precision matrix
+    
+    See
+    https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2770199/
+    for more information
 
-    space_bic = SPACE_BIC_Python(verbose=True)
-    space_bic.fit(X)
-    print(space_bic.precision_)
+    Attributes
+    ----------
+    n_splits : int
+        number of splits to use in the CV procedure
+    l1_reg : float 
+        Lasso regularization parameter
+    l2_reg : float
+        L2 regularization parameter
+    partial_correlation : p by p array
+        Estimated partial correlation matrix
+    precision_ : p by p array
+        Estimated precision matrix
+    sig_ : p by 1 array
+        Estimated noise in the problem (inverse of the diagonal of the 
+        precision matrix)
+    weight_ : p by 1 array 
+        Weight to give various nodes - currently not implemented
+    iter_ : int (default 2)
+        Number of iterations to run the method for (2/3 is usually sufficient)
+    solver_: 'c' or 'python' (default 'c')
+        Whether to use the C code provided by the authors or a Python solver
+        for the problem (please note the Python solver can be very slow and use
+        a lot of memory)
+    verbose : bool
+        Whether to dump more information to the console
+    """
+    def __init__(self, n_splits=3, l2_reg=0, sig=None, weight=None, iter=2, solver='c', verbose=False):
+        self.n_splits_= n_splits
+        super().__init__(-1, l2_reg, sig, weight, iter, solver, verbose)
 
-    space_bic = SPACE_BIC(verbose=True)
-    space_bic.fit(X)
-    print(space_bic.precision_)
-    print(space_bic.alpha_)
+    def fit(self, X):
+        """
+        Fits the SPACE problem to X and uses cross validation to decide on 
+        the L1 regularization parameter
 
-    prec = space_r.run(X, max_l)
-    print(prec[0])
+        Parameters
+        ----------
+        X : array_like
+            n by p data matrix
+
+        Returns
+        -------
+        """
+        p = X.shape[1]
+        prec = np.zeros((p, p))
+        kf = KFold(n_splits = self.n_splits_)
+        l_likelihood = collections.defaultdict(list)
+        S = np.cov(X.T)
+        offdiag = ~np.eye(p, dtype=bool)
+
+        p = X.shape[1]
+        prec = np.zeros((p, p))
+        kf = KFold(n_splits = self.n_splits_)
+        l_likelihood = collections.defaultdict(list)
+        S = np.cov(X.T)
+        offdiag = ~np.eye(p, dtype=bool)
+
+
+        # We have to guess these as there doesn't seem to be a good 
+        # 'one size fits all' method for selecting a good range
+        lambdas = np.linspace(1, 200)
+
+        for train, test in kf.split(X):
+            X_train = X[train, :]
+            X_test = X[test, :]
+            likelihoods = []
+
+            for l in lambdas:
+                self.l1_reg_ = l
+                super().fit(X_train)
+                prec = self.precision_
+                likelihood = self.rss_loss(X_test, self.partial_correlation_, self.sig_)
+                l_likelihood[l].append(likelihood)
+
+        likelihoods = []
+        for l in l_likelihood:
+            mean_likelihood = np.mean(l_likelihood[l])
+            likelihoods.append(mean_likelihood)
+        best_l_index = np.argmin(likelihoods)
+        self.l1_reg_ = lambdas[best_l_index]
+        super().fit(X)

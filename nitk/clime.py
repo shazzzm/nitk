@@ -146,7 +146,7 @@ class CLIMECV(BaseEstimator):
 
             for l in lambdas:
                 cl = CLIME(l)
-                cl.fit(X)
+                cl.fit(X_train)
                 prec = cl.precision_
                 if self.loss_ == "likelihood":
                     likelihood = self.likelihood(S_test, prec)

@@ -17,7 +17,7 @@ no_runs = 50
 
 # Degree distribution of the network
 # Can be caveman, uniform or power law
-network_structure = "power law" 
+network_structure = "uniform" 
 
 # Whether we add noise to the system
 noise = False
