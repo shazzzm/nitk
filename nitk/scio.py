@@ -240,7 +240,7 @@ class SCIOOverallCV(SCIO):
 
             for l in lambdas:
                 sc = SCIO(l)
-                sc.fit(X)
+                sc.fit(X_train)
                 prec = sc.precision_
                 likelihood = self.precision_likelihood_function(S_test, prec)
                 l_likelihood[l].append(likelihood)
@@ -253,3 +253,59 @@ class SCIOOverallCV(SCIO):
         sc = SCIO(lambdas[best_l_index])
         sc.fit(X)
         self.precision_ = sc.precision_
+
+class SCIOColumnBIC(SCIO):
+    """
+    Uses a per column BIC measure to estimate a sparse precision matrix
+    See https://www.sciencedirect.com/science/article/pii/S0047259X14002607 for more details
+
+    Parameters
+    -----------
+    """
+    def __init__(self, penalize_diag=False):
+        self.precision_ = None
+        self.penalize_diag = penalize_diag
+
+    def fit(self, X):
+        """
+        Runs the SCIO algorithm with BIC on each column to decide lambda
+
+        Parameters
+        -----------
+        X : array_like
+            n by p matrix to estimate the precision matrix of
+        """
+        n,p = X.shape
+        self.precision_ = np.zeros((p, p))
+        bic = []
+        lambdas = np.arange(0.005, 51)
+        lambdas = lambdas/50
+        S = np.cov(X.T)
+        for i in range(p):
+            for l in lambdas:
+                beta = self._solve_column_problem(S, i, l)
+                bic = self.bic(n, S, beta, i)
+
+
+            best_l_index = np.argmin(np.array(bic))
+            self.precision_[i, :] = self._solve_column_problem(S, i, lambdas[best_l_index])
+
+        #super().fit(X)
+
+    def bic(self, n, cov, beta, i):
+        """
+        Calculates the BIC of the given model
+
+        Parameters
+        ----------
+        cov : array_like
+            p by p covariance matrix
+        beta : array_like
+            p by 1 column of the estimated precision matrix
+        """
+        p = beta.shape[0]
+        k = np.count_nonzero(beta)
+        e_i = np.zeros(p)
+        e_i[i] = 1
+        likelihood = beta.T @ cov @ beta - e_i.T @ cov
+        return np.log(n) * k - 2 * np.log(-likelihood)

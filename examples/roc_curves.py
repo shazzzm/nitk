@@ -11,7 +11,7 @@ import networkx as nx
 from sklearn.preprocessing import StandardScaler
 
 # Set the parameters here
-p = 100
+p = 500
 n = 50
 no_runs = 50
 
@@ -167,7 +167,7 @@ for i in range(no_runs):
     clime_auc[i] = np.trapz(clime_tpr, clime_fpr)
     threshold_auc[i] = np.trapz(threshold_tpr, threshold_fpr)
 
-print("Glasso & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(glasso_auc), np.std(glasso_auc)))
+print("Graphical Lasso & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(glasso_auc), np.std(glasso_auc)))
 print("Neighbourhood Selection & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(ns_auc), np.std(ns_auc)))
 print("SCIO & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(scio_auc), np.std(scio_auc)))
 print("SPACE & %s & %s & %6.3f $\pm$ %6.3f" % (p, n, np.mean(space_auc), np.std(space_auc)))
